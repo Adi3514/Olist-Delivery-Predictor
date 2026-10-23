@@ -1,0 +1,197 @@
+{
+  "logistic_regression": {
+    "random_split": {
+      "auc": 0.7339,
+      "pr_auc": 0.2159,
+      "test_late_rate": 0.0784,
+      "n_train": 78065,
+      "n_test": 19517
+    },
+    "out_of_time": {
+      "auc": 0.6888,
+      "pr_auc": 0.1183,
+      "test_late_rate": 0.0564,
+      "n_train": 83222,
+      "n_test": 12616
+    },
+    "backtest": {
+      "mean_auc": 0.6936,
+      "min_auc": 0.5978,
+      "mean_pr_auc": 0.1513,
+      "months": {
+        "2018-03": {
+          "auc": 0.5978,
+          "pr_auc": 0.2693,
+          "test_late_rate": 0.2047,
+          "n_train": 54250,
+          "n_test": 7136
+        },
+        "2018-04": {
+          "auc": 0.7534,
+          "pr_auc": 0.1702,
+          "test_late_rate": 0.0587,
+          "n_train": 61157,
+          "n_test": 6897
+        },
+        "2018-05": {
+          "auc": 0.6867,
+          "pr_auc": 0.1622,
+          "test_late_rate": 0.0731,
+          "n_train": 69133,
+          "n_test": 6803
+        },
+        "2018-06": {
+          "auc": 0.7364,
+          "pr_auc": 0.0456,
+          "test_late_rate": 0.019,
+          "n_train": 76356,
+          "n_test": 6142
+        },
+        "2018-07": {
+          "auc": 0.6723,
+          "pr_auc": 0.1339,
+          "test_late_rate": 0.0436,
+          "n_train": 83222,
+          "n_test": 6219
+        },
+        "2018-08": {
+          "auc": 0.7149,
+          "pr_auc": 0.1267,
+          "test_late_rate": 0.0688,
+          "n_train": 89117,
+          "n_test": 6396
+        }
+      }
+    }
+  },
+  "lightgbm": {
+    "random_split": {
+      "auc": 0.7948,
+      "pr_auc": 0.3286,
+      "test_late_rate": 0.0784,
+      "n_train": 78065,
+      "n_test": 19517
+    },
+    "out_of_time": {
+      "auc": 0.5545,
+      "pr_auc": 0.0847,
+      "test_late_rate": 0.0564,
+      "n_train": 83222,
+      "n_test": 12616
+    },
+    "backtest": {
+      "mean_auc": 0.6766,
+      "min_auc": 0.6233,
+      "mean_pr_auc": 0.154,
+      "months": {
+        "2018-03": {
+          "auc": 0.6332,
+          "pr_auc": 0.2863,
+          "test_late_rate": 0.2047,
+          "n_train": 54250,
+          "n_test": 7136
+        },
+        "2018-04": {
+          "auc": 0.7471,
+          "pr_auc": 0.1642,
+          "test_late_rate": 0.0587,
+          "n_train": 61157,
+          "n_test": 6897
+        },
+        "2018-05": {
+          "auc": 0.7103,
+          "pr_auc": 0.1872,
+          "test_late_rate": 0.0731,
+          "n_train": 69133,
+          "n_test": 6803
+        },
+        "2018-06": {
+          "auc": 0.7012,
+          "pr_auc": 0.0523,
+          "test_late_rate": 0.019,
+          "n_train": 76356,
+          "n_test": 6142
+        },
+        "2018-07": {
+          "auc": 0.6233,
+          "pr_auc": 0.1184,
+          "test_late_rate": 0.0436,
+          "n_train": 83222,
+          "n_test": 6219
+        },
+        "2018-08": {
+          "auc": 0.6442,
+          "pr_auc": 0.1155,
+          "test_late_rate": 0.0688,
+          "n_train": 89117,
+          "n_test": 6396
+        }
+      }
+    }
+  },
+  "lightgbm_stable": {
+    "random_split": {
+      "auc": 0.763,
+      "pr_auc": 0.2889,
+      "test_late_rate": 0.0784,
+      "n_train": 78065,
+      "n_test": 19517
+    },
+    "out_of_time": {
+      "auc": 0.5962,
+      "pr_auc": 0.078,
+      "test_late_rate": 0.0564,
+      "n_train": 83222,
+      "n_test": 12616
+    },
+    "backtest": {
+      "mean_auc": 0.6558,
+      "min_auc": 0.5224,
+      "mean_pr_auc": 0.1348,
+      "months": {
+        "2018-03": {
+          "auc": 0.5224,
+          "pr_auc": 0.2166,
+          "test_late_rate": 0.2047,
+          "n_train": 54250,
+          "n_test": 7136
+        },
+        "2018-04": {
+          "auc": 0.7369,
+          "pr_auc": 0.148,
+          "test_late_rate": 0.0587,
+          "n_train": 61157,
+          "n_test": 6897
+        },
+        "2018-05": {
+          "auc": 0.6794,
+          "pr_auc": 0.1666,
+          "test_late_rate": 0.0731,
+          "n_train": 69133,
+          "n_test": 6803
+        },
+        "2018-06": {
+          "auc": 0.6814,
+          "pr_auc": 0.0677,
+          "test_late_rate": 0.019,
+          "n_train": 76356,
+          "n_test": 6142
+        },
+        "2018-07": {
+          "auc": 0.6484,
+          "pr_auc": 0.0977,
+          "test_late_rate": 0.0436,
+          "n_train": 83222,
+          "n_test": 6219
+        },
+        "2018-08": {
+          "auc": 0.6664,
+          "pr_auc": 0.112,
+          "test_late_rate": 0.0688,
+          "n_train": 89117,
+          "n_test": 6396
+        }
+      }
+    }
+  }
+}

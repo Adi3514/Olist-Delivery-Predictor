@@ -1,0 +1,175 @@
+{
+  "adversarial_auc": 0.964,
+  "monthly": {
+    "2016-09": {
+      "orders": 2,
+      "late_rate": 1.0
+    },
+    "2016-10": {
+      "orders": 273,
+      "late_rate": 0.0366
+    },
+    "2016-12": {
+      "orders": 1,
+      "late_rate": 0.0
+    },
+    "2017-01": {
+      "orders": 766,
+      "late_rate": 0.0496
+    },
+    "2017-02": {
+      "orders": 1674,
+      "late_rate": 0.0418
+    },
+    "2017-03": {
+      "orders": 2591,
+      "late_rate": 0.0621
+    },
+    "2017-04": {
+      "orders": 2352,
+      "late_rate": 0.085
+    },
+    "2017-05": {
+      "orders": 3600,
+      "late_rate": 0.0447
+    },
+    "2017-06": {
+      "orders": 3182,
+      "late_rate": 0.0446
+    },
+    "2017-07": {
+      "orders": 3928,
+      "late_rate": 0.0418
+    },
+    "2017-08": {
+      "orders": 4234,
+      "late_rate": 0.0385
+    },
+    "2017-09": {
+      "orders": 4188,
+      "late_rate": 0.0525
+    },
+    "2017-10": {
+      "orders": 4511,
+      "late_rate": 0.0488
+    },
+    "2017-11": {
+      "orders": 7361,
+      "late_rate": 0.1327
+    },
+    "2017-12": {
+      "orders": 5570,
+      "late_rate": 0.084
+    },
+    "2018-01": {
+      "orders": 7143,
+      "late_rate": 0.0668
+    },
+    "2018-02": {
+      "orders": 6612,
+      "late_rate": 0.1487
+    },
+    "2018-03": {
+      "orders": 7136,
+      "late_rate": 0.2047
+    },
+    "2018-04": {
+      "orders": 6897,
+      "late_rate": 0.0587
+    },
+    "2018-05": {
+      "orders": 6803,
+      "late_rate": 0.0731
+    },
+    "2018-06": {
+      "orders": 6142,
+      "late_rate": 0.019
+    },
+    "2018-07": {
+      "orders": 6219,
+      "late_rate": 0.0436
+    },
+    "2018-08": {
+      "orders": 6396,
+      "late_rate": 0.0688
+    },
+    "2018-09": {
+      "orders": 1,
+      "late_rate": 1.0
+    }
+  },
+  "top_drifting_features": [
+    {
+      "feature": "overall_recent_delivery_days",
+      "share_of_drift": "0.786",
+      "old_typical": "12.551",
+      "recent_typical": "9.136"
+    },
+    {
+      "feature": "purchase_month",
+      "share_of_drift": "0.114",
+      "old_typical": "5.0",
+      "recent_typical": "8.0"
+    },
+    {
+      "feature": "overall_recent_late_rate",
+      "share_of_drift": "0.052",
+      "old_typical": "0.062",
+      "recent_typical": "0.029"
+    },
+    {
+      "feature": "customer_state_past_orders",
+      "share_of_drift": "0.046",
+      "old_typical": "4272.0",
+      "recent_typical": "11951.0"
+    },
+    {
+      "feature": "route_past_orders",
+      "share_of_drift": "0.001",
+      "old_typical": "1327.0",
+      "recent_typical": "3438.0"
+    },
+    {
+      "feature": "purchase_hour",
+      "share_of_drift": "0.0",
+      "old_typical": "15.0",
+      "recent_typical": "15.0"
+    },
+    {
+      "feature": "customer_state_past_late_rate",
+      "share_of_drift": "0.0",
+      "old_typical": "0.045",
+      "recent_typical": "0.051"
+    },
+    {
+      "feature": "seller_past_late_rate",
+      "share_of_drift": "0.0",
+      "old_typical": "0.047",
+      "recent_typical": "0.067"
+    },
+    {
+      "feature": "customer_lat",
+      "share_of_drift": "0.0",
+      "old_typical": "-22.92",
+      "recent_typical": "-22.975"
+    },
+    {
+      "feature": "freight_ratio",
+      "share_of_drift": "0.0",
+      "old_typical": "0.224",
+      "recent_typical": "0.239"
+    },
+    {
+      "feature": "shipping_limit_days",
+      "share_of_drift": "0.0",
+      "old_typical": "6.014",
+      "recent_typical": "4.497"
+    },
+    {
+      "feature": "purchase_dow",
+      "share_of_drift": "0.0",
+      "old_typical": "3.0",
+      "recent_typical": "3.0"
+    }
+  ]
+}

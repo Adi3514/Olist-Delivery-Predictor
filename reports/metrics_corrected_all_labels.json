@@ -1,0 +1,34 @@
+{
+  "logistic_regression": {
+    "random_split": {
+      "auc": 0.6951,
+      "pr_auc": 0.1773,
+      "test_late_rate": 0.0842,
+      "n_train": 78564,
+      "n_test": 19641
+    },
+    "out_of_time": {
+      "auc": 0.5976,
+      "pr_auc": 0.0842,
+      "test_late_rate": 0.0592,
+      "n_train": 85552,
+      "n_test": 12653
+    }
+  },
+  "lightgbm": {
+    "random_split": {
+      "auc": 0.7895,
+      "pr_auc": 0.3349,
+      "test_late_rate": 0.0842,
+      "n_train": 78564,
+      "n_test": 19641
+    },
+    "out_of_time": {
+      "auc": 0.5855,
+      "pr_auc": 0.0866,
+      "test_late_rate": 0.0592,
+      "n_train": 85552,
+      "n_test": 12653
+    }
+  }
+}
