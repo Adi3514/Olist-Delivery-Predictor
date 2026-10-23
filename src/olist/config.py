@@ -22,7 +22,12 @@ RAW_FILES = {
     "categories": "product_category_name_translation.csv",
 }
 
-FEATURES_FILE = PROCESSED_DIR / "orders_features.parquet"
+
+
+def features_file(label_mode: str = "corrected") -> Path:
+    suffix = "" if label_mode == "corrected" else f"_{label_mode}"
+    return PROCESSED_DIR / f"orders_features{suffix}.parquet"
+
 
 # Months held out at the end of the timeline for the out-of-time test
 TEST_MONTHS = 3

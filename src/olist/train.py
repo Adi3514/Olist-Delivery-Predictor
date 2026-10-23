@@ -4,7 +4,7 @@ Each model is scored two ways:
 * random split: train and test orders mixed from all months (optimistic);
 * out-of-time: train on older months, test on the last TEST_MONTHS months (realistic).
 
-Usage: python -m olist.train [--naive-labels]
+Usage: python -m olist.train [--label-mode corrected|corrected_all|naive]
 """
 import argparse
 import json
@@ -19,8 +19,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from olist.config import FEATURES_FILE, MODELS_DIR, RAW_DIR, REPORTS_DIR, TEST_MONTHS
+from olist.config import MODELS_DIR, RAW_DIR, REPORTS_DIR, TEST_MONTHS, features_file
 from olist.features import CATEGORICAL, TARGET, build_features, feature_columns
+from olist.labels import LABEL_MODES
 from olist.load import load_all
 
 SEED = 42
@@ -103,27 +104,28 @@ def run(df: pd.DataFrame) -> tuple[dict, lgb.LGBMClassifier]:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--naive-labels", action="store_true",
-                        help="Use only delivered orders (the old label) to compare with the corrected one")
+    parser.add_argument("--label-mode", choices=LABEL_MODES, default="corrected",
+                        help="Which late label to train on (see olist/labels.py)")
     args = parser.parse_args()
 
-    if args.naive_labels:
-        df = build_features(load_all(RAW_DIR), corrected_labels=False)
+    path = features_file(args.label_mode)
+    if path.exists():
+        df = pd.read_parquet(path)
     else:
-        if not FEATURES_FILE.exists():
-            raise SystemExit("No feature table yet. Run `python -m olist.features` first.")
-        df = pd.read_parquet(FEATURES_FILE)
+        print(f"No feature table for '{args.label_mode}' labels yet, building it...")
+        df = build_features(load_all(RAW_DIR), label_mode=args.label_mode)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(path, index=False)
 
     results, model = run(df)
-    label = "naive" if args.naive_labels else "corrected"
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    out = REPORTS_DIR / f"metrics_{label}_labels.json"
+    out = REPORTS_DIR / f"metrics_{args.label_mode}_labels.json"
     out.write_text(json.dumps(results, indent=2))
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    model.booster_.save_model(str(MODELS_DIR / "lightgbm_out_of_time.txt"))
+    model.booster_.save_model(str(MODELS_DIR / f"lightgbm_out_of_time_{args.label_mode}.txt"))
 
-    print(f"Labels: {label}")
+    print(f"Labels: {args.label_mode}")
     for model_name, splits in results.items():
         for split_name, m in splits.items():
             print(f"  {model_name:20s} {split_name:13s} AUC {m['auc']:.3f}  PR-AUC {m['pr_auc']:.3f}")

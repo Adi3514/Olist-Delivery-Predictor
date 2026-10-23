@@ -4,13 +4,15 @@ History features (a seller's past late rate, and so on) only count orders whose
 outcome was already known before this order was placed, so nothing leaks from
 the future.
 
-Usage: python -m olist.features
+Usage: python -m olist.features [--label-mode corrected|corrected_all|naive]
 """
+import argparse
+
 import numpy as np
 import pandas as pd
 
-from olist.config import FEATURES_FILE, RAW_DIR
-from olist.labels import build_labels
+from olist.config import RAW_DIR, features_file
+from olist.labels import LABEL_MODES, build_labels
 from olist.load import load_all
 
 CATEGORICAL = ["customer_state", "seller_state", "product_category", "payment_type"]
@@ -128,9 +130,9 @@ def seller_backlog(df: pd.DataFrame) -> pd.Series:
     return out
 
 
-def build_features(tables: dict[str, pd.DataFrame], corrected_labels: bool = True) -> pd.DataFrame:
+def build_features(tables: dict[str, pd.DataFrame], label_mode: str = "corrected") -> pd.DataFrame:
     orders = tables["orders"]
-    labels = build_labels(orders, corrected=corrected_labels)
+    labels = build_labels(orders, mode=label_mode)
     labels = labels.merge(
         orders[["order_id", "order_delivered_customer_date", "order_estimated_delivery_date"]], on="order_id"
     )
@@ -178,14 +180,22 @@ def feature_columns(df: pd.DataFrame) -> list[str]:
 
 
 def main():
-    df = build_features(load_all(RAW_DIR))
-    FEATURES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(FEATURES_FILE, index=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--label-mode", choices=LABEL_MODES, default="corrected",
+                        help="How to label orders that never arrived (see olist/labels.py)")
+    args = parser.parse_args()
+
+    df = build_features(load_all(RAW_DIR), label_mode=args.label_mode)
+    path = features_file(args.label_mode)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(path, index=False)
+    sources = df.loc[df[TARGET] == 1, "label_source"].value_counts()
     print(
-        f"Saved {len(df):,} orders x {len(feature_columns(df))} features to {FEATURES_FILE}\n"
-        f"Late rate {df[TARGET].mean():.1%}; "
-        f"{(df['label_source'] == 'never_delivered').sum():,} late orders that were never delivered"
+        f"Saved {len(df):,} orders x {len(feature_columns(df))} features to {path}\n"
+        f"Late rate {df[TARGET].mean():.1%}. Late orders by source:"
     )
+    for source, count in sources.items():
+        print(f"  {source:16s} {count:,}")
 
 
 if __name__ == "__main__":

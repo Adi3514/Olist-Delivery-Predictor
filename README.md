@@ -32,11 +32,13 @@ The goal is to predict, at the moment someone clicks "buy", whether their order 
    ```
 
    When VS Code asks, pick `.venv` as the interpreter.
+
+   **Mac only:** LightGBM needs the OpenMP library. If `import lightgbm` fails with `Library not loaded: libomp.dylib`, run `brew install libomp`, or with conda, `conda install -c conda-forge llvm-openmp`.
 3. **Get the data:** download the zip from [Kaggle](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) and unzip the 9 CSV files into `data/raw/`. With a Kaggle API token you can instead run `pip install -e ".[kaggle]"` and `python -m olist.download`.
 4. **Build features and train:**
 
    ```bash
-   python -m olist.features   # writes data/processed/orders_features.parquet
+   python -m olist.features   # writes data/processed/orders_features.parquet and prints late orders by source
    python -m olist.train      # prints AUC for each model and writes reports/metrics_corrected_labels.json
    ```
 
@@ -44,7 +46,25 @@ The goal is to predict, at the moment someone clicks "buy", whether their order 
 
 ## How the data is turned into a model
 
-**Label.** An order is late when it reaches the customer on a later day than promised. A naive label keeps only delivered orders, which drops late orders that never arrived and makes recent months look better than they were. The corrected label counts overdue, never-delivered orders as late, drops canceled orders, and keeps only orders whose promise date is before the end of the data, so every outcome is known. Compare both with `python -m olist.train --naive-labels`.
+**Label.** An order is late when it reaches the customer on a later day than promised. A naive label keeps only delivered orders, which drops late orders that never arrived and makes recent months look better than they were. The corrected label (the default):
+
+- counts orders that were handed to the carrier but never delivered, once their promise date has passed, as late (`lost_in_transit`);
+- drops orders that never reached the carrier (stuck in "processing" or "invoiced"), because those are seller fulfilment failures, closer to cancellations than to slow deliveries;
+- drops canceled and unavailable orders;
+- keeps only orders whose promise date is before the end of the data, so every outcome is known.
+
+Compare the three versions with `--label-mode`:
+
+| Mode | Never-delivered, shipped | Never shipped |
+| --- | --- | --- |
+| `corrected` (default) | late | dropped |
+| `corrected_all` | late | late |
+| `naive` | dropped | dropped |
+
+```bash
+python -m olist.train --label-mode corrected_all
+python -m olist.train --label-mode naive
+```
 
 **Features (32), all known at the moment of purchase:**
 
