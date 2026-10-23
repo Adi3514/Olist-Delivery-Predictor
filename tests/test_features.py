@@ -35,3 +35,11 @@ def test_loads_from_csv(raw_dir):
     tables = load_all(raw_dir)
     assert tables["customers"]["customer_zip_code_prefix"].str.len().eq(5).all()
     assert len(build_features(tables)) > 0
+
+
+def test_label_modes_change_which_orders_are_kept(tables):
+    default = build_features(tables)
+    everything = build_features(tables, label_mode="corrected_all")
+    assert "never_shipped" not in set(default["label_source"])
+    assert "never_shipped" in set(everything["label_source"])
+    assert len(everything) > len(default)

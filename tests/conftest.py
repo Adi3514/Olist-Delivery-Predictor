@@ -71,6 +71,9 @@ def make_tables(n_orders: int = 2000, seed: int = 0) -> dict[str, pd.DataFrame]:
     snapshot = purchase.max()
     delivered = delivered.where(delivered <= snapshot)
     status = np.where((status == "delivered") & delivered.isna(), "shipped", status)
+    status[rng.random(n_orders) < 0.01] = "processing"  # never handed to the carrier
+    delivered = delivered.where(status != "processing")
+    carrier = pd.Series(purchase + pd.Timedelta(days=2)).where(~np.isin(status, ["processing", "canceled"]))
 
     orders = pd.DataFrame({
         "order_id": [f"o{i}" for i in range(n_orders)],
@@ -78,7 +81,7 @@ def make_tables(n_orders: int = 2000, seed: int = 0) -> dict[str, pd.DataFrame]:
         "order_status": status,
         "order_purchase_timestamp": purchase,
         "order_approved_at": purchase + pd.Timedelta(hours=1),
-        "order_delivered_carrier_date": purchase + pd.Timedelta(days=2),
+        "order_delivered_carrier_date": carrier.values,
         "order_delivered_customer_date": delivered.values,
         "order_estimated_delivery_date": estimated,
     })
