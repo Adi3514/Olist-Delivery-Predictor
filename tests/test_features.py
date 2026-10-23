@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from olist.features import build_features, feature_columns, haversine_km
 from olist.load import load_all
@@ -43,3 +44,25 @@ def test_label_modes_change_which_orders_are_kept(tables):
     assert "never_shipped" not in set(default["label_source"])
     assert "never_shipped" in set(everything["label_source"])
     assert len(everything) > len(default)
+
+
+def test_future_outcomes_do_not_change_past_features(tables):
+    cutoff = tables["orders"]["order_purchase_timestamp"].quantile(0.6)
+    changed = {name: df.copy() for name, df in tables.items()}
+    orders = changed["orders"]
+    later = orders["order_purchase_timestamp"] >= cutoff
+    # Make every later order very late; nothing about earlier orders may change
+    orders.loc[later, "order_delivered_customer_date"] = orders.loc[later, "order_estimated_delivery_date"] + pd.Timedelta(days=30)
+    orders.loc[later, "order_status"] = "delivered"
+
+    before = build_features(tables).set_index("order_id")
+    after = build_features(changed).set_index("order_id")
+    early = before.index[before["order_purchase_timestamp"] < cutoff]
+    cols = feature_columns(before)
+    pd.testing.assert_frame_equal(before.loc[early, cols], after.loc[early, cols])
+
+
+def test_recent_features_are_valid(tables):
+    df = build_features(tables)
+    assert df["overall_recent_late_rate"].dropna().between(0, 1).all()
+    assert df["promise_slack_days"].notna().mean() > 0.9
