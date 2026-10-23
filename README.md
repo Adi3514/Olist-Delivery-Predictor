@@ -15,7 +15,7 @@ The goal is to predict, at the moment someone clicks "buy", whether their order 
 | Data download and order-level feature table | Done |
 | Corrected late label (counts never-delivered orders) | Done |
 | Baseline models: logistic regression vs LightGBM, random vs out-of-time test | Done |
-| Making the model stable across months (drift) | Next |
+| Drift report, recent-conditions features, month-by-month backtest | Done |
 | Streamlit dashboard | Planned |
 | Delivery-promise simulator | Planned |
 | Chat assistant over the data | Later |
@@ -39,7 +39,8 @@ The goal is to predict, at the moment someone clicks "buy", whether their order 
 
    ```bash
    python -m olist.features   # writes data/processed/orders_features.parquet and prints late orders by source
-   python -m olist.train      # prints AUC for each model and writes reports/metrics_corrected_labels.json
+   python -m olist.drift      # late rate by month and the features that shift over time
+   python -m olist.train      # compares 3 models on random, last-3-months and month-by-month tests
    ```
 
 5. **Run the tests:** `pytest`. They use a small fake dataset, so they work without the real data.
@@ -66,15 +67,32 @@ python -m olist.train --label-mode corrected_all
 python -m olist.train --label-mode naive
 ```
 
-**Features (32), all known at the moment of purchase:**
+**Features (37), all known at the moment of purchase:**
 
 - Order: number of items, sellers, total price, freight, freight-to-price ratio, weight, volume, category, payment type and instalments
 - Promise: days promised, seller's ship-by deadline
 - Geography: customer and seller state, coordinates, seller-to-customer distance, same-state flag
 - Time: month, day of week, hour
 - History: past late rate of the seller, the customer's state and the seller-to-customer route, and the seller's orders in the last 7 days. History only counts orders whose outcome was already known before this purchase, so nothing leaks from the future.
+- Recent conditions: late rate and average delivery time over the last 30 days, overall and for the customer's state, plus the promise slack (promised days minus how long deliveries to that state are taking right now). These let the model notice a wave as it starts.
 
-**Evaluation.** Each model is scored on a random split and on an out-of-time split (train on older months, test on the last 3). The out-of-time score is the honest one. Lateness in this data comes in waves, such as the early-2018 spike, so a model can look good on random orders and much worse on future months.
+**Evaluation.** Each model is scored three ways:
+
+- **Random split:** test orders mixed in from all months. Optimistic.
+- **Last 3 months:** train on older months, test on the newest three.
+- **Backtest:** one test per month over the last 6 months, each time training on everything known before that month. The mean AUC is the headline number, and the worst month shows how badly a model can slip during a wave.
+
+Training sets only contain orders whose outcome was known before the test period starts, as it would be in production. Lateness in this data comes in waves, such as the early-2018 spike, so a model can look good on random orders and much worse on future months.
+
+**Models compared:**
+
+| Model | What it is |
+| --- | --- |
+| `logistic_regression` | Simple baseline |
+| `lightgbm` | Gradient-boosted trees on all features |
+| `lightgbm_stable` | Smaller, more regularized trees; leaves out calendar-like features (month, raw coordinates, running order counts); weights recent orders more (half-life 120 days) |
+
+**Drift report.** `python -m olist.drift` trains a model to tell old orders from recent ones. If it can, the features it leans on are the ones that drift.
 
 ## Project layout
 
@@ -84,8 +102,9 @@ src/olist/
   download.py    Kaggle download
   load.py        read raw CSVs with the right types
   labels.py      late label, including never-delivered orders
-  features.py    one row per order, leak-free history features
-  train.py       logistic regression vs LightGBM, random vs out-of-time
+  features.py    one row per order, leak-free history and recent-conditions features
+  drift.py       late rate by month and adversarial validation
+  train.py       3 models on random, last-3-months and month-by-month tests
 tests/           pytest suite on a small fake dataset
 data/raw/        Kaggle CSVs (not committed)
 ```

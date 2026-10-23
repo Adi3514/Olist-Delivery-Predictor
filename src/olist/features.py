@@ -18,6 +18,7 @@ from olist.load import load_all
 CATEGORICAL = ["customer_state", "seller_state", "product_category", "payment_type"]
 HISTORY_PRIOR_WEIGHT = 10  # pseudo-orders that pull small-sample rates toward the overall rate
 BACKLOG_DAYS = 7
+RECENT_DAYS = 30  # window for "recent conditions" features
 
 
 def haversine_km(lat1, lng1, lat2, lng2):
@@ -70,32 +71,41 @@ def payment_features(payments: pd.DataFrame) -> pd.DataFrame:
     return agg.reset_index()
 
 
-def past_late_rate(events: pd.DataFrame, queries: pd.DataFrame, key: str | None, name: str) -> pd.DataFrame:
-    """For each query order, the late rate of `key`'s orders whose outcome was known before purchase.
+def known_before(events: pd.DataFrame, queries: pd.DataFrame, key: str | None, at: str, values: list[str]) -> pd.DataFrame:
+    """Count and sum `values` over `key`'s events whose outcome was known strictly before queries[at].
 
-    events: key, known_at, is_late (one row per labeled order)
-    queries: order_id, key, order_purchase_timestamp
+    events: key, known_at and the value columns; queries: order_id, key and the `at` column.
+    Returns order_id, n and one sum column per value.
     """
     by = [key] if key else []
     ev = events.dropna(subset=by + ["known_at"]).sort_values("known_at").copy()
-    grouped = ev.groupby(key) if key else ev
-    ev["n_known"] = grouped.cumcount() + 1 if key else np.arange(1, len(ev) + 1)
-    ev["n_late"] = grouped["is_late"].cumsum()
+    if key:
+        grouped = ev.groupby(key)
+        ev["n"] = grouped.cumcount() + 1
+        for col in values:
+            ev[col] = grouped[col].cumsum()
+    else:
+        ev["n"] = np.arange(1, len(ev) + 1)
+        for col in values:
+            ev[col] = ev[col].cumsum()
 
-    q = queries.dropna(subset=by).sort_values("order_purchase_timestamp")
+    q = queries.dropna(subset=by).sort_values(at)
     merged = pd.merge_asof(
-        q,
-        ev[by + ["known_at", "n_known", "n_late"]],
-        left_on="order_purchase_timestamp",
+        q[["order_id", at] + by],
+        ev[by + ["known_at", "n"] + values],
+        left_on=at,
         right_on="known_at",
         by=key,
         allow_exact_matches=False,
     )
-    merged[["n_known", "n_late"]] = merged[["n_known", "n_late"]].fillna(0)
-    out = merged[["order_id", "n_known", "n_late"]].rename(
-        columns={"n_known": f"{name}_past_orders", "n_late": f"{name}_past_late"}
-    )
-    return out
+    merged[["n"] + values] = merged[["n"] + values].fillna(0)
+    return merged.set_index("order_id")[["n"] + values]
+
+
+def past_late_rate(events: pd.DataFrame, queries: pd.DataFrame, key: str | None, name: str) -> pd.DataFrame:
+    """For each query order, the orders and late orders of `key` whose outcome was known before purchase."""
+    counts = known_before(events, queries, key, "order_purchase_timestamp", ["is_late"])
+    return counts.rename(columns={"n": f"{name}_past_orders", "is_late": f"{name}_past_late"}).reset_index()
 
 
 def add_history_features(df: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
@@ -130,14 +140,58 @@ def seller_backlog(df: pd.DataFrame) -> pd.Series:
     return out
 
 
+def in_recent_window(events, queries, key, values):
+    """Like known_before, but only for outcomes that became known in the last RECENT_DAYS."""
+    q = queries.copy()
+    q["window_start"] = q["order_purchase_timestamp"] - pd.Timedelta(days=RECENT_DAYS)
+    now = known_before(events, q, key, "order_purchase_timestamp", values)
+    before = known_before(events, q, key, "window_start", values).reindex(now.index)
+    return now - before
+
+
+def add_recent_features(df: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
+    """Late rate and delivery speed in the last RECENT_DAYS, so the model can see waves as they start."""
+    keys = df[["order_id", "customer_state", "order_purchase_timestamp"]]
+    late_events = keys.merge(labels[["order_id", "is_late", "known_at"]], on="order_id")
+    delivered = labels.dropna(subset=["order_delivered_customer_date"])
+    speed_events = keys.merge(delivered[["order_id", "known_at", "delivery_days"]], on="order_id")
+
+    overall = in_recent_window(late_events, keys, None, ["is_late"])
+    overall_rate = overall["is_late"] / overall["n"].replace(0, np.nan)
+    state = in_recent_window(late_events, keys, "customer_state", ["is_late"]).reindex(overall.index)
+    p = overall_rate.reindex(state.index)
+    state_rate = (state["is_late"] + HISTORY_PRIOR_WEIGHT * p) / (state["n"] + HISTORY_PRIOR_WEIGHT)
+
+    overall_speed = in_recent_window(speed_events, keys, None, ["delivery_days"])
+    overall_days = overall_speed["delivery_days"] / overall_speed["n"].replace(0, np.nan)
+    state_speed = in_recent_window(speed_events, keys, "customer_state", ["delivery_days"]).reindex(overall_speed.index)
+    d = overall_days.reindex(state_speed.index)
+    state_days = (state_speed["delivery_days"] + HISTORY_PRIOR_WEIGHT * d) / (state_speed["n"] + HISTORY_PRIOR_WEIGHT)
+
+    recent = pd.DataFrame({
+        "overall_recent_late_rate": overall_rate,
+        "customer_state_recent_late_rate": state_rate,
+        "overall_recent_delivery_days": overall_days,
+        "customer_state_recent_delivery_days": state_days,
+    })
+    df = df.merge(recent, left_on="order_id", right_index=True, how="left")
+    # Positive slack: the promise covers how long deliveries to this state are taking right now
+    df["promise_slack_days"] = df["promised_days"] - df["customer_state_recent_delivery_days"]
+    return df
+
+
 def build_features(tables: dict[str, pd.DataFrame], label_mode: str = "corrected") -> pd.DataFrame:
     orders = tables["orders"]
     labels = build_labels(orders, mode=label_mode)
     labels = labels.merge(
-        orders[["order_id", "order_delivered_customer_date", "order_estimated_delivery_date"]], on="order_id"
+        orders[["order_id", "order_purchase_timestamp", "order_delivered_customer_date", "order_estimated_delivery_date"]],
+        on="order_id",
     )
     # When the outcome became visible: the delivery day, or the promise day for never-delivered orders
     labels["known_at"] = labels["order_delivered_customer_date"].fillna(labels["order_estimated_delivery_date"])
+    labels["delivery_days"] = (
+        labels["order_delivered_customer_date"] - labels["order_purchase_timestamp"]
+    ).dt.total_seconds() / 86400
 
     df = orders[["order_id", "customer_id", "order_purchase_timestamp", "order_estimated_delivery_date"]].copy()
     df = df.merge(tables["customers"][["customer_id", "customer_zip_code_prefix", "customer_state"]], on="customer_id", how="left")
@@ -163,7 +217,8 @@ def build_features(tables: dict[str, pd.DataFrame], label_mode: str = "corrected
     df["seller_backlog_7d"] = seller_backlog(df)
 
     df = add_history_features(df, labels)
-    df = df.merge(labels[["order_id", "is_late", "label_source"]], on="order_id", how="inner")
+    df = add_recent_features(df, labels)
+    df = df.merge(labels[["order_id", "is_late", "label_source", "known_at"]], on="order_id", how="inner")
 
     df = df.drop(columns=["customer_id", "customer_zip_code_prefix", "seller_zip_code_prefix", "shipping_limit", "route"])
     for col in CATEGORICAL:
@@ -171,7 +226,9 @@ def build_features(tables: dict[str, pd.DataFrame], label_mode: str = "corrected
     return df.sort_values("order_purchase_timestamp").reset_index(drop=True)
 
 
-ID_COLUMNS = ["order_id", "seller_id", "order_purchase_timestamp", "order_estimated_delivery_date", "label_source"]
+ID_COLUMNS = [
+    "order_id", "seller_id", "order_purchase_timestamp", "order_estimated_delivery_date", "label_source", "known_at",
+]
 TARGET = "is_late"
 
 
